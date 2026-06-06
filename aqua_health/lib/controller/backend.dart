@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import '../model/egg.dart';
 import '../model/animal.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -14,7 +15,22 @@ int steps = 0;
 double sleep = 0;
 double sleepGoal = 8;
 int stepsGoal = 10000;
-Timer? _stepsTimer;
+Timer? _healthTimer;
+HealthService _healthService = HealthService();
+
+const String _lastSyncedStepDateKey = 'lastSyncedStepDate';
+const String _lastSyncedStepCountKey = 'lastSyncedStepCount';
+const String _lastSleepRewardDateKey = 'lastSleepRewardDate';
+
+@visibleForTesting
+void setHealthServiceForTesting(HealthService healthService) {
+  _healthService = healthService;
+}
+
+@visibleForTesting
+void resetHealthServiceForTesting() {
+  _healthService = HealthService();
+}
 
 Future<void> initHive() async {
   await Hive.initFlutter();
@@ -43,35 +59,36 @@ Future<void> initHive() async {
 }
 
 Future<void> initHealthData() async {
-  // run once on app start
-  steps = await getSteps();
-  sleep = await getSleep();
+  await refresh();
+}
 
-  // optional: immediately process eggs on startup
-  await refresh(useRealData: false);
+Future<bool> requestHealthPermissions() {
+  return _healthService.requestPermissions();
 }
 
 Future<int> getSteps() async {
-  return HealthService().getTodaySteps();
+  return _healthService.getTodaySteps();
 }
 
 Future<double> getSleep() {
-  return HealthService().getSleepHoursLast24Hours();
+  return _healthService.getSleepHoursLast24Hours();
+}
+
+void startHealthPolling() {
+  _healthTimer?.cancel();
+
+  _healthTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+    await refresh();
+  });
 }
 
 void startStepsPolling() {
-  _stepsTimer?.cancel();
+  startHealthPolling();
+}
 
-  _stepsTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
-    int prevSteps = steps;
-
-    steps = await getSteps();
-
-    int diff = steps - prevSteps;
-    if (diff > 0) {
-      await _applyStepProgress(diff);
-    }
-  });
+void disposeHealthPolling() {
+  _healthTimer?.cancel();
+  _healthTimer = null;
 }
 
 Future<void> _applyStepProgress(int diff) async {
@@ -83,10 +100,6 @@ Future<void> _applyStepProgress(int diff) async {
       await egg.save();
     }
   }
-}
-
-void disposeHealthPolling() {
-  _stepsTimer?.cancel();
 }
 
 Future<void> addDemoSteps(int amount) async {
@@ -104,28 +117,102 @@ void addDemoSleep(double hours) {
   sleep += hours;
 }
 
-Future<void> refresh({bool useRealData = true}) async {
+Future<void> refresh({bool useRealData = true, DateTime? syncedAt}) async {
+  final DateTime syncDate = syncedAt ?? DateTime.now();
   final int prevSteps = steps;
 
   if (useRealData) {
-    steps = await getSteps();
-    sleep = await getSleep();
+    final int syncedSteps = await getSteps();
+    final double syncedSleep = await getSleep();
+    final int stepDiff = _realStepDiff(syncedSteps, syncDate);
+
+    steps = syncedSteps;
+    sleep = syncedSleep;
+
+    await _spawnSleepEggIfEligible(useRealData: true, syncedAt: syncDate);
+
+    if (stepDiff > 0) {
+      await _applyStepProgress(stepDiff);
+    }
+
+    await settingsBox.put(_lastSyncedStepDateKey, _dateKey(syncDate));
+    await settingsBox.put(
+      _lastSyncedStepCountKey,
+      _stepCountToStore(syncedSteps, syncDate),
+    );
+    return;
   }
 
-  // egg spawning based on sleep
-  if (sleep >= sleepGoal) {
-    for (int i = 0; i < 3; i++) {
-      if (eggBox.getAt(i) == null) {
-        var rarity = Random().nextInt(4);
-        await eggBox.putAt(i, Egg(rarity, stepsGoal));
-        break;
-      }
-    }
-  }
+  await _spawnSleepEggIfEligible(useRealData: false, syncedAt: syncDate);
 
   if (steps > prevSteps) {
     await _applyStepProgress(steps - prevSteps);
   }
+}
+
+int _realStepDiff(int syncedSteps, DateTime syncedAt) {
+  final String today = _dateKey(syncedAt);
+  final Object? lastDate = settingsBox.get(_lastSyncedStepDateKey);
+
+  if (lastDate != today) {
+    return syncedSteps;
+  }
+
+  final int lastSteps =
+      (settingsBox.get(_lastSyncedStepCountKey, defaultValue: 0) as num)
+          .toInt();
+
+  return max(0, syncedSteps - lastSteps);
+}
+
+int _stepCountToStore(int syncedSteps, DateTime syncedAt) {
+  final String today = _dateKey(syncedAt);
+  final Object? lastDate = settingsBox.get(_lastSyncedStepDateKey);
+
+  if (lastDate != today) {
+    return syncedSteps;
+  }
+
+  final int lastSteps =
+      (settingsBox.get(_lastSyncedStepCountKey, defaultValue: 0) as num)
+          .toInt();
+
+  return max(lastSteps, syncedSteps);
+}
+
+Future<void> _spawnSleepEggIfEligible({
+  required bool useRealData,
+  required DateTime syncedAt,
+}) async {
+  if (sleep < sleepGoal) return;
+
+  final String today = _dateKey(syncedAt);
+  if (useRealData && settingsBox.get(_lastSleepRewardDateKey) == today) {
+    return;
+  }
+
+  final bool spawned = await _spawnEgg();
+  if (spawned && useRealData) {
+    await settingsBox.put(_lastSleepRewardDateKey, today);
+  }
+}
+
+Future<bool> _spawnEgg() async {
+  for (int i = 0; i < 3; i++) {
+    if (eggBox.getAt(i) == null) {
+      var rarity = Random().nextInt(4);
+      await eggBox.putAt(i, Egg(rarity, stepsGoal));
+      return true;
+    }
+  }
+
+  return false;
+}
+
+String _dateKey(DateTime date) {
+  final String month = date.month.toString().padLeft(2, '0');
+  final String day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
 }
 
 Future<Animal?> hatchEgg(Egg egg) async {

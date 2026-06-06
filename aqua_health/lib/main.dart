@@ -1,24 +1,27 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:health/health.dart';
 import 'controller/backend.dart';
 import 'model/egg.dart';
 import 'model/animal.dart';
 import 'model/animal_motion.dart';
 import 'screens/hatch_reveal_screen.dart';
 
-bool web = true;
+const bool _forceDemoHealthData = bool.fromEnvironment(
+  'aquaHealth.useDemoHealthData',
+);
+
+bool get useDemoHealthData =>
+    kIsWeb ||
+    defaultTargetPlatform != TargetPlatform.android ||
+    (kDebugMode && _forceDemoHealthData);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initHive();
-  if (!web) {
-    await initHealthData();
-    startStepsPolling();
-  }
 
   runApp(const MyApp());
 }
@@ -55,24 +58,23 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
   final Set<Object> _revealingEggKeys = <Object>{};
   bool _isRevealingCompletedEggs = false;
   bool _isHatchDockCollapsed = true;
+  bool _canUseRealHealth = false;
 
-  Future<void> _requestHealthPermissionsIfNeeded() async {
-    if (web) return;
+  Future<bool> _requestHealthPermissionsIfNeeded() async {
+    if (useDemoHealthData) return false;
+    return requestHealthPermissions();
+  }
 
-    final health = Health();
+  Future<bool> _ensureHealthSyncReady() async {
+    if (useDemoHealthData) return false;
+    if (_canUseRealHealth) return true;
 
-    final types = [HealthDataType.STEPS, HealthDataType.SLEEP_ASLEEP];
-
-    final permissions = [HealthDataAccess.READ, HealthDataAccess.READ];
-
-    final hasPermissions = await health.hasPermissions(
-      types,
-      permissions: permissions,
-    );
-
-    if (hasPermissions != true) {
-      await health.requestAuthorization(types, permissions: permissions);
+    _canUseRealHealth = await _requestHealthPermissionsIfNeeded();
+    if (_canUseRealHealth) {
+      startHealthPolling();
     }
+
+    return _canUseRealHealth;
   }
 
   @override
@@ -80,8 +82,8 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _requestHealthPermissionsIfNeeded();
-      await refresh(useRealData: !web);
+      await _ensureHealthSyncReady();
+      await refresh(useRealData: _canUseRealHealth);
 
       if (mounted) {
         setState(() {});
@@ -90,8 +92,15 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    disposeHealthPolling();
+    super.dispose();
+  }
+
   Future<void> _refresh() async {
-    await refresh(useRealData: !web);
+    await _ensureHealthSyncReady();
+    await refresh(useRealData: _canUseRealHealth);
     if (!mounted) return;
     setState(() {});
     await _revealCompletedEggs();
@@ -387,55 +396,57 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
                                     );
                                   }),
                                 ),
-                                const SizedBox(height: 9),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  alignment: WrapAlignment.center,
-                                  children: <Widget>[
-                                    _QuickActionButton(
-                                      icon: Icons.directions_walk_rounded,
-                                      label: '+200',
-                                      onPressed: () async {
-                                        await addDemoSteps(200);
-                                        if (!mounted) return;
-                                        setState(() {});
-                                        await _revealCompletedEggs();
-                                      },
-                                    ),
-                                    _QuickActionButton(
-                                      icon: Icons.directions_run_rounded,
-                                      label: '+500',
-                                      onPressed: () async {
-                                        await addDemoSteps(500);
-                                        if (!mounted) return;
-                                        setState(() {});
-                                        await _revealCompletedEggs();
-                                      },
-                                    ),
-                                    _QuickActionButton(
-                                      icon: Icons.bedtime_rounded,
-                                      label: '+2h',
-                                      onPressed: () async {
-                                        addDemoSleep(2);
-                                        await refresh(useRealData: false);
-                                        if (!mounted) return;
-                                        setState(() {});
-                                      },
-                                    ),
-                                    _QuickActionButton(
-                                      icon: Icons.calendar_today_rounded,
-                                      label: 'Day',
-                                      onPressed: () async {
-                                        steps = 0;
-                                        sleep = 0;
-                                        await refresh(useRealData: false);
-                                        if (!mounted) return;
-                                        setState(() {});
-                                      },
-                                    ),
-                                  ],
-                                ),
+                                if (useDemoHealthData) ...<Widget>[
+                                  const SizedBox(height: 9),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    alignment: WrapAlignment.center,
+                                    children: <Widget>[
+                                      _QuickActionButton(
+                                        icon: Icons.directions_walk_rounded,
+                                        label: '+200',
+                                        onPressed: () async {
+                                          await addDemoSteps(200);
+                                          if (!mounted) return;
+                                          setState(() {});
+                                          await _revealCompletedEggs();
+                                        },
+                                      ),
+                                      _QuickActionButton(
+                                        icon: Icons.directions_run_rounded,
+                                        label: '+500',
+                                        onPressed: () async {
+                                          await addDemoSteps(500);
+                                          if (!mounted) return;
+                                          setState(() {});
+                                          await _revealCompletedEggs();
+                                        },
+                                      ),
+                                      _QuickActionButton(
+                                        icon: Icons.bedtime_rounded,
+                                        label: '+2h',
+                                        onPressed: () async {
+                                          addDemoSleep(2);
+                                          await refresh(useRealData: false);
+                                          if (!mounted) return;
+                                          setState(() {});
+                                        },
+                                      ),
+                                      _QuickActionButton(
+                                        icon: Icons.calendar_today_rounded,
+                                        label: 'Day',
+                                        onPressed: () async {
+                                          steps = 0;
+                                          sleep = 0;
+                                          await refresh(useRealData: false);
+                                          if (!mounted) return;
+                                          setState(() {});
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),
