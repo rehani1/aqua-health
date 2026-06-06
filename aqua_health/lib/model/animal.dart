@@ -16,5 +16,14 @@ class Animal extends HiveObject {
   @HiveField(3, defaultValue: false)
   bool isRare;
 
-  Animal({required this.name, required this.type, required this.sprite, required this.isRare});
+  @HiveField(4, defaultValue: false)
+  bool storedInPc;
+
+  Animal({
+    required this.name,
+    required this.type,
+    required this.sprite,
+    required this.isRare,
+    this.storedInPc = false,
+  });
 }

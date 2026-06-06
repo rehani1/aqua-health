@@ -227,6 +227,20 @@ Future<Animal?> hatchEgg(Egg egg) async {
   return animal;
 }
 
+bool isAnimalInAquarium(Animal animal) {
+  return !animal.storedInPc;
+}
+
+Future<void> storeAnimalInPc(Animal animal) async {
+  animal.storedInPc = true;
+  await animal.save();
+}
+
+Future<void> withdrawAnimalFromPc(Animal animal) async {
+  animal.storedInPc = false;
+  await animal.save();
+}
+
 int _eggIndex(Egg egg) {
   for (int i = 0; i < eggBox.length; i++) {
     final Egg? currentEgg = eggBox.getAt(i);

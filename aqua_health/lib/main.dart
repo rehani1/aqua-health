@@ -106,6 +106,106 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
     await _revealCompletedEggs();
   }
 
+  Future<void> _openPcStorage() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFF8FCFF),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        final double maxHeight = MediaQuery.sizeOf(context).height * 0.72;
+
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: ValueListenableBuilder<Box<Animal>>(
+                valueListenable: animalBox.listenable(),
+                builder: (context, Box<Animal> box, _) {
+                  final storedEntries = box
+                      .toMap()
+                      .entries
+                      .where((entry) => entry.value.storedInPc)
+                      .toList(growable: false);
+
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          const Icon(
+                            Icons.inventory_2_rounded,
+                            color: Color(0xFF0277BD),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'PC Storage',
+                              style: TextStyle(
+                                color: Color(0xFF103B5D),
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Close',
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (storedEntries.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 28),
+                          child: Center(
+                            child: Text(
+                              'PC is empty',
+                              style: TextStyle(
+                                color: Color(0xFF47728B),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: storedEntries.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final Animal animal = storedEntries[index].value;
+                              return _PcAnimalTile(
+                                animal: animal,
+                                onWithdraw: () async {
+                                  await withdrawAnimalFromPc(animal);
+                                  if (mounted) setState(() {});
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (mounted) setState(() {});
+  }
+
   Object _eggRevealKey(Egg egg) {
     return egg.key ?? identityHashCode(egg);
   }
@@ -487,8 +587,14 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
                 child: ValueListenableBuilder<Box<Animal>>(
                   valueListenable: animalBox.listenable(),
                   builder: (context, Box<Animal> box, _) {
-                    final int collectionCount = box.length;
-                    final int rareCount = box.values
+                    final List<Animal> activeAnimals = box.values
+                        .where(isAnimalInAquarium)
+                        .toList(growable: false);
+                    final int storedCount = box.values
+                        .where((Animal animal) => animal.storedInPc)
+                        .length;
+                    final int collectionCount = activeAnimals.length;
+                    final int rareCount = activeAnimals
                         .where((Animal animal) => animal.isRare)
                         .length;
                     final int reefLevel = max(1, collectionCount ~/ 3 + 1);
@@ -553,10 +659,21 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        _ReefScoreBar(
-                          level: reefLevel,
-                          animals: collectionCount,
-                          rare: rareCount,
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: _ReefScoreBar(
+                                level: reefLevel,
+                                animals: collectionCount,
+                                rare: rareCount,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _PcStorageButton(
+                              count: storedCount,
+                              onPressed: _openPcStorage,
+                            ),
+                          ],
                         ),
                       ],
                     );
@@ -771,6 +888,120 @@ class _ReefScoreBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PcStorageButton extends StatelessWidget {
+  const _PcStorageButton({required this.count, required this.onPressed});
+
+  final int count;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final String countLabel = count > 99 ? '99+' : count.toString();
+
+    return Tooltip(
+      message: 'Open PC Storage',
+      child: SizedBox(
+        width: 74,
+        height: 34,
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.42),
+          borderRadius: BorderRadius.circular(17),
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(17),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  const Icon(
+                    Icons.inventory_2_rounded,
+                    size: 15,
+                    color: Color(0xFF026DA8),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'PC',
+                    style: TextStyle(
+                      color: Color(0xFF13425F),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  if (count > 0) ...<Widget>[
+                    const SizedBox(width: 4),
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFE8A3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        countLabel,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF17425D),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PcAnimalTile extends StatelessWidget {
+  const _PcAnimalTile({required this.animal, required this.onWithdraw});
+
+  final Animal animal;
+  final VoidCallback onWithdraw;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+      leading: SizedBox(
+        width: 44,
+        height: 44,
+        child: Image.asset(
+          _spriteAssetPath(animal.sprite),
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.set_meal_rounded, color: Color(0xFF0277BD));
+          },
+        ),
+      ),
+      title: Text(
+        animal.name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Color(0xFF103B5D),
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      subtitle: Text(animal.isRare ? '${animal.type} · Rare' : animal.type),
+      trailing: FilledButton.tonalIcon(
+        onPressed: onWithdraw,
+        icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
+        label: const Text('Withdraw'),
       ),
     );
   }
@@ -1128,6 +1359,8 @@ class EggWidget extends StatelessWidget {
   }
 }
 
+enum _AnimalAction { rename, storeInPc }
+
 class AnimalArena extends StatefulWidget {
   const AnimalArena({super.key});
 
@@ -1237,6 +1470,79 @@ class _AnimalArenaState extends State<AnimalArena> {
     }
   }
 
+  Future<void> _showAnimalActions(Animal animal) async {
+    final _AnimalAction? action = await showModalBottomSheet<_AnimalAction>(
+      context: context,
+      backgroundColor: const Color(0xFFF8FCFF),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Image.asset(
+                      _spriteAssetPath(animal.sprite),
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.set_meal_rounded,
+                          color: Color(0xFF0277BD),
+                        );
+                      },
+                    ),
+                  ),
+                  title: Text(
+                    animal.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    animal.isRare ? '${animal.type} · Rare' : animal.type,
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.edit_rounded),
+                  title: const Text('Rename'),
+                  onTap: () => Navigator.of(context).pop(_AnimalAction.rename),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.inventory_2_rounded),
+                  title: const Text('Store in PC'),
+                  onTap: () =>
+                      Navigator.of(context).pop(_AnimalAction.storeInPc),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case _AnimalAction.rename:
+        await _renameAnimal(animal);
+        break;
+      case _AnimalAction.storeInPc:
+        await storeAnimalInPc(animal);
+        motionMap.remove(animal.key);
+        if (mounted) setState(() {});
+        break;
+    }
+  }
+
   Future<void> _renameAnimal(Animal animal) async {
     final TextEditingController controller = TextEditingController(
       text: animal.name,
@@ -1317,7 +1623,12 @@ class _AnimalArenaState extends State<AnimalArena> {
         return ValueListenableBuilder<Box<Animal>>(
           valueListenable: animalBox.listenable(),
           builder: (context, Box<Animal> box, _) {
-            final List<dynamic> keys = box.keys.toList();
+            final List<dynamic> keys = box
+                .toMap()
+                .entries
+                .where((entry) => isAnimalInAquarium(entry.value))
+                .map((entry) => entry.key)
+                .toList(growable: false);
             _syncMotion(keys, size);
 
             if (keys.isEmpty) {
@@ -1340,7 +1651,7 @@ class _AnimalArenaState extends State<AnimalArena> {
                   child: _AnimalWidget(
                     animal: animal,
                     facingLeft: motion.velocity.dx < 0,
-                    onTap: () => _renameAnimal(animal),
+                    onTap: () => _showAnimalActions(animal),
                   ),
                 );
               }).toList(),
@@ -1400,7 +1711,7 @@ class _AnimalWidget extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: 'Rename ${animal.name}',
+      label: 'Manage ${animal.name}',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,

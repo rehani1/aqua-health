@@ -21,13 +21,14 @@ class AnimalAdapter extends TypeAdapter<Animal> {
       type: fields[1] as String,
       sprite: fields[2] as String,
       isRare: fields[3] == null ? false : fields[3] as bool,
+      storedInPc: fields[4] == null ? false : fields[4] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, Animal obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -35,7 +36,9 @@ class AnimalAdapter extends TypeAdapter<Animal> {
       ..writeByte(2)
       ..write(obj.sprite)
       ..writeByte(3)
-      ..write(obj.isRare);
+      ..write(obj.isRare)
+      ..writeByte(4)
+      ..write(obj.storedInPc);
   }
 
   @override
