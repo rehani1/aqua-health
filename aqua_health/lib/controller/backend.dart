@@ -241,6 +241,22 @@ Future<void> withdrawAnimalFromPc(Animal animal) async {
   await animal.save();
 }
 
+Future<bool> releaseAnimal(Animal animal) async {
+  final dynamic animalKey = animal.key;
+  if (animalKey == null) return false;
+
+  await animalBox.delete(animalKey);
+  return true;
+}
+
+Future<bool> deleteEgg(Egg egg) async {
+  final int eggIndex = _eggIndex(egg);
+  if (eggIndex == -1) return false;
+
+  await eggBox.putAt(eggIndex, null);
+  return true;
+}
+
 int _eggIndex(Egg egg) {
   for (int i = 0; i < eggBox.length; i++) {
     final Egg? currentEgg = eggBox.getAt(i);

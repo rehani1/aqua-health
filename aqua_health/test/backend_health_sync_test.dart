@@ -88,6 +88,16 @@ void main() {
     await refresh(useRealData: false, syncedAt: DateTime(2026, 6, 6, 10));
     expect(_eggCount(), 2);
   });
+
+  test('deleteEgg clears the matching egg slot', () async {
+    final egg = Egg(0, stepsGoal);
+    await eggBox.putAt(1, egg);
+
+    expect(eggBox.getAt(1), isNotNull);
+    expect(await deleteEgg(eggBox.getAt(1)!), isTrue);
+    expect(eggBox.getAt(1), isNull);
+    expect(eggBox.length, 3);
+  });
 }
 
 int _eggCount() {

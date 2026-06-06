@@ -47,4 +47,20 @@ void main() {
     expect(animalBox.getAt(0)!.storedInPc, isFalse);
     expect(isAnimalInAquarium(animalBox.getAt(0)!), isTrue);
   });
+
+  test('release permanently removes animals from local storage', () async {
+    final animal = Animal(
+      name: 'Shelly',
+      type: 'Turtle',
+      sprite: 'sprite_9',
+      isRare: true,
+      storedInPc: true,
+    );
+
+    await animalBox.add(animal);
+
+    expect(animalBox.length, 1);
+    expect(await releaseAnimal(animalBox.getAt(0)!), isTrue);
+    expect(animalBox.length, 0);
+  });
 }

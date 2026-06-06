@@ -47,6 +47,39 @@ class MyApp extends StatelessWidget {
   }
 }
 
+Future<bool> _confirmDestructiveAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String actionLabel,
+}) async {
+  final bool? confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFC62828),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(actionLabel),
+          ),
+        ],
+      );
+    },
+  );
+
+  return confirmed ?? false;
+}
+
 class EggHatcherScreen extends StatefulWidget {
   const EggHatcherScreen({super.key});
 
@@ -189,6 +222,19 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
                                   await withdrawAnimalFromPc(animal);
                                   if (mounted) setState(() {});
                                 },
+                                onRelease: () async {
+                                  final confirmed = await _confirmDestructiveAction(
+                                    context,
+                                    title: 'Release ${animal.name}?',
+                                    message:
+                                        'This permanently removes ${animal.name} from your collection.',
+                                    actionLabel: 'Release',
+                                  );
+                                  if (!confirmed) return;
+
+                                  await releaseAnimal(animal);
+                                  if (mounted) setState(() {});
+                                },
                               );
                             },
                           ),
@@ -204,6 +250,89 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
     );
 
     if (mounted) setState(() {});
+  }
+
+  Future<void> _showEggActions(Egg egg) async {
+    final _EggAction? action = await showModalBottomSheet<_EggAction>(
+      context: context,
+      backgroundColor: const Color(0xFFF8FCFF),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (context) {
+        final int progressPercent = (egg.progress.clamp(0, 1) * 100).round();
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.egg_alt_rounded,
+                    color: Color(0xFF0277BD),
+                  ),
+                  title: Text(
+                    egg.rarityLabel,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    egg.isComplete ? 'Ready to hatch' : '$progressPercent%',
+                  ),
+                ),
+                const Divider(height: 1),
+                if (egg.isComplete)
+                  ListTile(
+                    leading: const Icon(Icons.auto_awesome_rounded),
+                    title: const Text('Hatch'),
+                    onTap: () => Navigator.of(context).pop(_EggAction.hatch),
+                  )
+                else
+                  ListTile(
+                    leading: const Icon(Icons.refresh_rounded),
+                    title: const Text('Refresh Progress'),
+                    onTap: () => Navigator.of(context).pop(_EggAction.refresh),
+                  ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: Color(0xFFC62828),
+                  ),
+                  title: const Text('Delete Egg'),
+                  textColor: const Color(0xFFC62828),
+                  onTap: () => Navigator.of(context).pop(_EggAction.delete),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) return;
+
+    switch (action) {
+      case _EggAction.hatch:
+        await _openHatchRevealFromEgg(egg);
+        break;
+      case _EggAction.refresh:
+        await _refresh();
+        break;
+      case _EggAction.delete:
+        final bool confirmed = await _confirmDestructiveAction(
+          context,
+          title: 'Delete egg?',
+          message: 'This removes the egg and its hatch progress.',
+          actionLabel: 'Delete',
+        );
+        if (!confirmed) return;
+
+        await deleteEgg(egg);
+        if (mounted) setState(() {});
+        break;
+    }
   }
 
   Object _eggRevealKey(Egg egg) {
@@ -483,10 +612,8 @@ class _EggHatcherScreenState extends State<EggHatcherScreen> {
                                           egg: egg,
                                           slotNumber: index + 1,
                                           onTap: () async {
-                                            if (egg != null && egg.isComplete) {
-                                              await _openHatchRevealFromEgg(
-                                                egg,
-                                              );
+                                            if (egg != null) {
+                                              await _showEggActions(egg);
                                             } else {
                                               await _refresh();
                                             }
@@ -968,10 +1095,15 @@ class _PcStorageButton extends StatelessWidget {
 }
 
 class _PcAnimalTile extends StatelessWidget {
-  const _PcAnimalTile({required this.animal, required this.onWithdraw});
+  const _PcAnimalTile({
+    required this.animal,
+    required this.onWithdraw,
+    required this.onRelease,
+  });
 
   final Animal animal;
   final VoidCallback onWithdraw;
+  final VoidCallback onRelease;
 
   @override
   Widget build(BuildContext context) {
@@ -998,10 +1130,24 @@ class _PcAnimalTile extends StatelessWidget {
         ),
       ),
       subtitle: Text(animal.isRare ? '${animal.type} · Rare' : animal.type),
-      trailing: FilledButton.tonalIcon(
-        onPressed: onWithdraw,
-        icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
-        label: const Text('Withdraw'),
+      trailing: SizedBox(
+        width: 96,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: <Widget>[
+            IconButton(
+              tooltip: 'Withdraw',
+              onPressed: onWithdraw,
+              icon: const Icon(Icons.keyboard_arrow_up_rounded),
+            ),
+            IconButton(
+              tooltip: 'Release',
+              color: const Color(0xFFC62828),
+              onPressed: onRelease,
+              icon: const Icon(Icons.delete_forever_rounded),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1359,7 +1505,9 @@ class EggWidget extends StatelessWidget {
   }
 }
 
-enum _AnimalAction { rename, storeInPc }
+enum _EggAction { hatch, refresh, delete }
+
+enum _AnimalAction { rename, storeInPc, release }
 
 class AnimalArena extends StatefulWidget {
   const AnimalArena({super.key});
@@ -1522,6 +1670,15 @@ class _AnimalArenaState extends State<AnimalArena> {
                   onTap: () =>
                       Navigator.of(context).pop(_AnimalAction.storeInPc),
                 ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_forever_rounded,
+                    color: Color(0xFFC62828),
+                  ),
+                  title: const Text('Release'),
+                  textColor: const Color(0xFFC62828),
+                  onTap: () => Navigator.of(context).pop(_AnimalAction.release),
+                ),
               ],
             ),
           ),
@@ -1537,6 +1694,20 @@ class _AnimalArenaState extends State<AnimalArena> {
         break;
       case _AnimalAction.storeInPc:
         await storeAnimalInPc(animal);
+        motionMap.remove(animal.key);
+        if (mounted) setState(() {});
+        break;
+      case _AnimalAction.release:
+        final bool confirmed = await _confirmDestructiveAction(
+          context,
+          title: 'Release ${animal.name}?',
+          message:
+              'This permanently removes ${animal.name} from your collection.',
+          actionLabel: 'Release',
+        );
+        if (!confirmed) return;
+
+        await releaseAnimal(animal);
         motionMap.remove(animal.key);
         if (mounted) setState(() {});
         break;
