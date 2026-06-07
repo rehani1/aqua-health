@@ -32,11 +32,10 @@ class EggsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Walking earns eggs. Sleeping hatches them.',
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(color: AppColors.textSecondary),
+            'Sleep earns eggs. Walking hatches them.',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
 
@@ -62,9 +61,9 @@ class EggsScreen extends StatelessWidget {
                     child: Text(
                       'Ready to hatch - tap to reveal.',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: AppColors.primaryBlueDark,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: AppColors.primaryBlueDark,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
               ],

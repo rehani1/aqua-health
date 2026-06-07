@@ -1,0 +1,4 @@
+storePassword=replace-with-store-password
+keyPassword=replace-with-key-password
+keyAlias=aqua-health
+storeFile=/absolute/path/to/aqua-health-release.jks

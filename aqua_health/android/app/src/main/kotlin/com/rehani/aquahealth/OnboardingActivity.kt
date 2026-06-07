@@ -1,4 +1,4 @@
-package com.example.aqua_health
+package com.rehani.aquahealth
 
 import android.app.Activity
 import android.os.Bundle

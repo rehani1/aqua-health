@@ -16,10 +16,8 @@ class EggAdapter extends TypeAdapter<Egg> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return Egg(
-      fields[0] as int,
-      fields[1] as int,
-    )..totalSteps = fields[2] as int;
+    return Egg(fields[0] as int, fields[1] as int)
+      ..totalSteps = fields[2] as int;
   }
 
   @override

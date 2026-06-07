@@ -72,7 +72,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       ? null
                       : () {
                           setState(() => _stepConnected = true);
-                          // TODO(health-data): Replace mock toggle with Health Connect permission API call.
                         },
                 ),
                 const SizedBox(height: 14),
@@ -87,7 +86,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       ? null
                       : () {
                           setState(() => _sleepConnected = true);
-                          // TODO(health-data): Replace mock toggle with Apple Health/Health Connect sleep permission request.
                         },
                 ),
                 const SizedBox(height: 24),

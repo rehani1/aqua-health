@@ -94,8 +94,8 @@ class WelcomeScreen extends StatelessWidget {
                       builder: (_) => AlertDialog(
                         title: const Text('How it works'),
                         content: const Text(
-                          'Reach your step and sleep goals to earn eggs, hatch '
-                          'sea creatures, and grow your aquarium.',
+                          'Meet your sleep goal to earn eggs, then walk to '
+                          'hatch sea creatures and grow your aquarium.',
                         ),
                         actions: <Widget>[
                           TextButton(

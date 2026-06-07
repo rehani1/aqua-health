@@ -32,7 +32,6 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
   }
 
   void _goToDashboard() {
-    // TODO(health-data): Persist selected goals once real health sync is enabled.
     Navigator.of(context).pushNamedAndRemoveUntil(
       BottomNavShell.routeName,
       (Route<dynamic> route) => false,
@@ -82,7 +81,7 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
                 _GoalCard(
                   icon: Icons.directions_walk_rounded,
                   title: 'Daily Step Goal',
-                  helperText: 'Reaching your step goal earns eggs!',
+                  helperText: 'Steps add hatch progress to active eggs.',
                   valueLabel: '${_stepGoal.toStringAsFixed(0)} steps',
                   onMinus: () => _updateStepGoal(-500),
                   onPlus: () => _updateStepGoal(500),
@@ -91,7 +90,7 @@ class _GoalSetupScreenState extends State<GoalSetupScreen> {
                 _GoalCard(
                   icon: Icons.bedtime_rounded,
                   title: 'Sleep Goal',
-                  helperText: 'Reaching your sleep goal adds hatch progress.',
+                  helperText: 'Reaching your sleep goal can add a new egg.',
                   valueLabel: '${_sleepGoal.toStringAsFixed(1)} hrs',
                   onMinus: () => _updateSleepGoal(-0.5),
                   onPlus: () => _updateSleepGoal(0.5),

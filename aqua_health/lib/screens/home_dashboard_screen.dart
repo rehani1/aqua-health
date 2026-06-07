@@ -57,7 +57,7 @@ class HomeDashboardScreen extends StatelessWidget {
             title: 'Steps',
             headline: '$currentSteps',
             goalLabel: '/$stepGoal steps',
-            helperText: '800 more steps for your next egg',
+            helperText: 'More steps will hatch your active eggs',
             trailing: _StepCircle(progress: stepsRatio),
             progressWidget: const SizedBox.shrink(),
           ),
@@ -66,7 +66,7 @@ class HomeDashboardScreen extends StatelessWidget {
             title: 'Sleep',
             headline: currentSleep.toStringAsFixed(1),
             goalLabel: '/ ${sleepGoal.toStringAsFixed(1)} hrs',
-            helperText: "Tonight's sleep will grow your eggs",
+            helperText: "Tonight's sleep can add a new egg",
             progressWidget: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: LinearProgressIndicator(

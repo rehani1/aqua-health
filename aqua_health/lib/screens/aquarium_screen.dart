@@ -103,9 +103,9 @@ class AquariumScreen extends StatelessWidget {
         ],
       ),
     );
-    
   }
-    Alignment _alignmentForAnimal(Animal animal) {
+
+  Alignment _alignmentForAnimal(Animal animal) {
     final int hash = animal.name.hashCode;
     final double x = ((hash % 200) - 100) / 100;
     final double y = (((hash ~/ 200) % 200) - 100) / 100;
@@ -143,10 +143,9 @@ class _AnimalBadge extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           animal.name,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: AppColors.textPrimary),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
         ),
       ],
     );
