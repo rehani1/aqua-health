@@ -6,6 +6,12 @@ Aqua Health is a local-first Android Flutter app that turns daily Health Connect
 
 Version 1.0.0 provides an egg hatcher interface where sleep can spawn eggs, steps hatch them, and animals can be kept in the aquarium or stored locally in a PC-style collection. Health data stays on the device and there is no hosted backend.
 
+## Demo
+
+<p align="center">
+  <img src="docs/aqua-health-demo.gif" alt="Aqua Health demo" width="360">
+</p>
+
 ## Features
 
 - Android Health Connect sync for steps and sleep.
