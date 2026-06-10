@@ -9,7 +9,7 @@ Version 1.0.0 provides an egg hatcher interface where sleep can spawn eggs, step
 ## Demo
 
 <p align="center">
-  <img src="docs/aqua-health-demo.gif" alt="Aqua Health demo" width="360">
+  <img src="aqua_health/docs/aqua-health-demo.gif" alt="Aqua Health demo" width="360">
 </p>
 
 ## Features
