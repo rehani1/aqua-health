@@ -9,9 +9,11 @@ Version 1.0.0 provides an egg hatcher interface where sleep can spawn eggs, step
 ## Demo
 
 <p align="center">
-  <img src="aqua_health/docs/aqua-health-demo.gif" alt="Aqua Health demo" width="420">
+  <img src="aqua_health/docs/aqua-health-demo.gif" alt="Aqua Health demo" width="800">
 </p>
--Note: The demo uses simulated steps/sleep to quickly replicate health data.
+
+Note: The demo uses simulated steps/sleep to quickly replicate health data.
+
 ## Features
 
 - Android Health Connect sync for steps and sleep.
